@@ -29,7 +29,14 @@ type SharedSocketOptions = {
 type SocketOptions = SharedSocketOptions & (NetOptions | TLSOptions);
 type SharedOptions = {
   nickname: string;
+  username?: string;
+  realname?: string;
   autoReconnect?: boolean;
+  autojoin?: string | string[];
+  reconnectMultiplier?: number;
+  reconnectMax?: number;
+  reconnectFailAtMax?: boolean;
+  watchdogTimeout?: number;
   preConnectCommands?: string[];
   postConnectCommands?: string[];
 };
@@ -37,3 +44,15 @@ export type TwitchOptions = {
   oauth?: string;
 };
 export type IRCOptions = SharedOptions & (SocketOptions | WebSocketOptions);
+
+type WebSocketClose = {
+  code: number;
+  reason: string;
+}
+type NetSocketClose = {
+  hadError: boolean;
+}
+type TLSSocketClose = {
+  hadError: boolean;
+}
+export type SocketCloseEvent = WebSocketClose | NetSocketClose | TLSSocketClose;

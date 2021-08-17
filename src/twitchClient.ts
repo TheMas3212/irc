@@ -1,29 +1,20 @@
-import { BaseClient } from "./baseClient";
-import { Channel, IClient, Message } from "./client";
-import { IRCOptions, TwitchOptions } from "./types";
+import { BaseClient, BaseChannel, BaseChannelManager } from "./baseClient";
+import { IRCMessage } from "./Message";
+import { IRCOptions, SocketCloseEvent, TwitchOptions } from "./types";
 
-interface ITwitchClient extends IClient {
-  on(event: string, listener: (...args: any[]) => void): void;
-  on(event: 'message', listener: (msg: TwitchMessage) => void): void;
-}
-class TwitchClient extends BaseClient implements ITwitchClient {
-  private oauth: string;
-  constructor(options: TwitchOptions & IRCOptions) {
-    super(options);
-    this.oauth = options.oauth;
-  }
-  joinChannel(channel: string): Promise<Channel> {
-    throw new Error("Method not implemented.");
-  }
-  leaveChannel(channel: string): Promise<void> {
-    throw new Error("Method not implemented.");
-  }
-  disconnect(): Promise<void> {
-    throw new Error("Method not implemented.");
+class TwitchChannelManager extends BaseChannelManager<TwitchChannel> {
+  constructor(client: TwitchClient) {
+    super(client, TwitchChannel);
   }
 }
 
-export class TwitchMessage extends Message {
+export class TwitchChannel extends BaseChannel {
+  constructor(manager: TwitchChannelManager, name: string) {
+    super(manager, name);
+  }
+}
+
+export class TwitchMessage extends IRCMessage {
   constructor(data: string) {
     super(data);
   }
@@ -79,5 +70,65 @@ export class TwitchMessage extends Message {
         return undefined;
       }
     }
+  }
+}
+
+type PartialTwitchConfig = {
+  mode: 'ws';
+  url: string;
+} | {
+  mode: 'tls' | 'net';
+  host: string;
+  port: number;
+}
+
+export interface TwitchClient extends BaseClient<TwitchChannel> {
+  on(event: 'message', listener: (msg: TwitchMessage) => void): this;
+  on(event: 'ready', listener: () => void): this;
+  on(event: 'socketOpen', listener: () => void): this;
+  on(event: 'socketError', listener: (error: Error) => void): this;
+  on(event: 'socketClose', listener: (obj: SocketCloseEvent) => void): this;
+  on(event: 'channel-join' | 'channel-part', listener: (channelName: string) => void): this;
+}
+export class TwitchClient extends BaseClient<TwitchChannel> {
+  static readonly CONFIG_SSL_WS: PartialTwitchConfig = {
+    mode: 'ws',
+    url: 'wss://irc-ws.chat.twitch.tv:443'
+  }
+  static readonly CONFIG_SSL_IRC: PartialTwitchConfig = {
+    mode: 'tls',
+    host: 'irc.chat.twitch.tv',
+    port: 6697
+  }
+  static readonly CONFIG_PLAINTEXT_WS: PartialTwitchConfig = {
+    mode: 'ws',
+    url: 'ws://irc-ws.chat.twitch.tv:80'
+  }
+  static readonly CONFIG_PLAINTEXT_IRC: PartialTwitchConfig = {
+    mode: 'net',
+    host: 'irc.chat.twitch.tv',
+    port: 6667
+  }
+  static readonly CAP_MEMBERSHIP = 'CAP REQ :twitch.tv/membership';
+  static readonly CAP_TAGS = 'CAP REQ :twitch.tv/tags';
+  static readonly CAP_COMMANDS = 'CAP REQ :twitch.tv/commands';
+  static readonly CAP_ALL = 'CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands'
+  static generateNickname() {
+    return 'justinfan' + Math.floor(Math.random()*1000000);
+  }
+  private oauth: string;
+  readonly channels: TwitchChannelManager;
+  constructor(options: TwitchOptions & IRCOptions) {
+    super(options);
+    this.oauth = options.oauth;
+    this.channels = new TwitchChannelManager(this);
+  }
+  protected connectHook() {
+    if (this.oauth) {
+      this.send(`PASS ${this.oauth.startsWith('oauth:') ? this.oauth : `oauth:${this.oauth}`}`);
+    }
+  }
+  protected processMessage(data: string): TwitchMessage {
+    return new TwitchMessage(data);
   }
 }

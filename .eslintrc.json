@@ -1,10 +1,17 @@
 {
   "parser": "@typescript-eslint/parser",
   "rules": {
-    "semi": ["error", "always"]
+    "semi": [
+      "error",
+      "always"
+    ],
+    "no-console": [
+      "error",
+      {}
+    ]
   },
   "parserOptions": {
-    "ecmaVersion": 9,
+    "ecmaVersion": 12,
     "sourceType": "module",
     "ecmaFeatures": {
       "modules": true

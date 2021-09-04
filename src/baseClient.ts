@@ -147,18 +147,20 @@ export abstract class BaseClient<T extends BaseChannel> extends EventEmitter {
   public kill() {
     this.watchdog.stop();
     this._status = ClientState.Disconnected;
-    switch (this.mode) {
-      case 'ws': {
-        return (this.socket as WebSocket).terminate();
-      }
-      case 'net': {
-        return (this.socket as Socket).destroy();
-      }
-      case 'tls': {
-        return (this.socket as TLSSocket).destroy();
-      }
-      default: {
-        throw exhaustiveError(this.mode, 'Invalid Client Mode');
+    if (this.socket !== undefined) {
+      switch (this.mode) {
+        case 'ws': {
+          return (this.socket as WebSocket).terminate();
+        }
+        case 'net': {
+          return (this.socket as Socket).destroy();
+        }
+        case 'tls': {
+          return (this.socket as TLSSocket).destroy();
+        }
+        default: {
+          throw exhaustiveError(this.mode, 'Invalid Client Mode');
+        }
       }
     }
   }
